@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Airplane</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 60px rgba(0,0,0,0.6);
+        }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #score {
+            position: absolute;
+            top: 20px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 42px;
+            font-weight: 900;
+            color: white;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+            pointer-events: none;
+            letter-spacing: -1px;
+        }
+        #gameOver, #startScreen {
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 36px 40px;
+            border-radius: 18px;
+            text-align: center;
+            pointer-events: all;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
+        }
+        #gameOver h2, #startScreen h2 {
+            margin: 0 0 16px 0;
+            font-size: 30px;
+            font-weight: 900;
+        }
+        #gameOver p, #startScreen p {
+            margin: 8px 0;
+            font-size: 16px;
+            opacity: 0.85;
+        }
+        button {
+            background: linear-gradient(135deg, #FF6B35, #FF4500);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 17px;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 18px;
+            letter-spacing: 0.5px;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 4px 16px rgba(255,69,0,0.4);
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,69,0,0.5); }
+        button:active { transform: translateY(0); }
+        .instructions {
+            position: absolute;
+            bottom: 16px; left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            pointer-events: none;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div id="ui">
+        <div id="score">0</div>
+        <div id="startScreen">
+            <h2>✈️ Flappy Airplane</h2>
+            <p>Click or press SPACE to start!</p>
+            <p>Fly through the gaps — don't hit buildings!</p>
+            <div style="margin-top:14px;font-size:13px;opacity:0.6;">Click or press SPACE to flap</div>
+        </div>
+        <div id="gameOver" style="display:none;">
+            <h2>💥 Crash!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>Best Score: <span id="bestScore">0</span></p>
+            <button onclick="restartGame()">Fly Again</button>
+            <div style="margin-top:10px;font-size:13px;opacity:0.5;">or press SPACE / click anywhere</div>
+        </div>
+    </div>
+    <div class="instructions">Click anywhere or press SPACE to fly</div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'start';
+let score = 0;
+let bestScore = 0;
+let explosionParticles = [];
+let smokeParticles = [];
+let debrisParticles = [];
+let buildingDamage = null; // { building, relX, relY, hitTop, cracks, ... }
+let canRestart = false;
+
+const airplane = {
+    x: 80, y: 250,
+    width: 45, height: 20,
+    velocity: 0,
+    gravity: 0.15,
+    jumpStrength: -4.5,
+    rotation: 0
+};
+
+let buildings = [];
+const buildingWidth = 70;
+const buildingGap = 180;
+let buildingTimer = 0;
+
+let clouds = [];
+let groundOffset = 0;
+
+// ─── Particle classes ────────────────────────────────────────────────────────
+
+class Particle {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 9;
+        this.vy = (Math.random() - 0.5) * 9;
+        this.size = Math.random() * 7 + 3;
+        this.color = ['#FF4500','#FF6347','#FFA500','#FFD700','#8B4513'][Math.floor(Math.random()*5)];
+        this.life = 1;
+        this.decay = Math.random() * 0.022 + 0.01;
+    }
+    update() { this.x += this.vx; this.y += this.vy; this.vy += 0.22; this.life -= this.decay; }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+class SmokeParticle {
+    constructor(x, y) {
+        this.x = x + (Math.random()-0.5)*20;
+        this.y = y;
+        this.vx = (Math.random()-0.5)*0.6;
+        this.vy = -Math.random()*1.1 - 0.5;
+        this.size = Math.random()*7 + 4;
+        this.life = 1;
+        this.decay = Math.random()*0.006 + 0.003;
+        this.gray = Math.floor(Math.random()*50 + 20);
+    }
+    update() { this.x += this.vx; this.y += this.vy; this.size += 0.12; this.life -= this.decay; }
+    draw() {
+        ctx.globalAlpha = Math.max(0, this.life * 0.45);
+        ctx.fillStyle = `rgb(${this.gray},${this.gray},${this.gray})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+class DebrisParticle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random()-0.5)*5;
+        this.vy = -(Math.random()*3+1);
+        this.size = Math.random()*5+2;
+        this.color = color;
+        this.rotation = Math.random()*Math.PI*2;
+        this.rotSpeed = (Math.random()-0.5)*0.25;
+        this.life = 1;
+        this.decay = Math.random()*0.006+0.003;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        this.vy += 0.1;
+        this.rotation += this.rotSpeed;
+        this.life -= this.decay;
+    }
+    draw() {
+        if (this.y > canvas.height - 45) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ─── Clouds ──────────────────────────────────────────────────────────────────
+
+function initClouds() {
+    clouds = [];
+    for (let i = 0; i < 6; i++) {
+        clouds.push({
+            x: Math.random()*canvas.width, y: Math.random()*180+40,
+            w: Math.random()*60+40, h: Math.random()*25+15,
+            speed: Math.random()*0.4+0.15
+        });
+    }
+}
+
+function drawCloud(c) {
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.w/3, 0, Math.PI*2);
+    ctx.arc(c.x+c.w/3, c.y, c.w/4.5, 0, Math.PI*2);
+    ctx.arc(c.x+c.w/2, c.y, c.w/3, 0, Math.PI*2);
+    ctx.fill();
+}
+
+function updateClouds() {
+    clouds.forEach(c => {
+        c.x -= c.speed;
+        if (c.x + c.w < 0) { c.x = canvas.width+50; c.y = Math.random()*180+40; }
+    });
+}
+
+// ─── Airplane ────────────────────────────────────────────────────────────────
+
+function drawAirplane() {
+    ctx.save();
+    ctx.translate(airplane.x+airplane.width/2, airplane.y+airplane.height/2);
+    ctx.rotate(airplane.rotation);
+
+    // Body
+    ctx.fillStyle = '#ECECEC';
+    ctx.beginPath();
+    ctx.roundRect(-airplane.width/2, -airplane.height/2, airplane.width, airplane.height, 4);
+    ctx.fill();
+
+    // Nose cone
+    ctx.fillStyle = '#CCCCCC';
+    ctx.beginPath();
+    ctx.moveTo(airplane.width/2, 0);
+    ctx.lineTo(airplane.width/2+12, -4);
+    ctx.lineTo(airplane.width/2+12, 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wings
+    ctx.fillStyle = '#B8B8B8';
+    ctx.fillRect(-8, -airplane.height/2-13, 18, 13);
+    ctx.fillRect(-8, airplane.height/2, 18, 13);
+
+    // Tail
+    ctx.fillRect(-airplane.width/2-9, -9, 9, 18);
+
+    // Window
+    ctx.fillStyle = '#4169E1';
+    ctx.fillRect(airplane.width/2-14, -5, 9, 10);
+
+    // Red stripe
+    ctx.fillStyle = '#FF4500';
+    ctx.fillRect(-airplane.width/2, -2, airplane.width, 4);
+
+    ctx.restore();
+}
+
+// ─── Buildings ───────────────────────────────────────────────────────────────
+
+function createBuilding() {
+    const topHeight = Math.random()*(canvas.height - buildingGap - 200)+100;
+    const colors      = ['#5C6370','#6B7280','#8899AA','#707888'];
+    const darkColors  = ['#3C4350','#4B5260','#607080','#505868'];
+    const roofColors  = ['#3A3F4A','#484E5C','#556070','#3E4450'];
+    const idx = Math.floor(Math.random()*colors.length);
+    return {
+        x: canvas.width,
+        topHeight, bottomY: topHeight+buildingGap,
+        scored: false,
+        color: colors[idx],
+        darkColor: darkColors[idx],
+        roofColor: roofColors[idx]
+    };
+}
+
+function drawBuilding(b) {
+    const x = b.x, bw = buildingWidth;
+
+    // ── Top building ──
+    ctx.fillStyle = b.color;
+    ctx.fillRect(x, 0, bw, b.topHeight);
+    // Dark side shading
+    ctx.fillStyle = b.darkColor;
+    ctx.fillRect(x+bw-8, 0, 8, b.topHeight);
+    // Windows
+    drawWindows(b, 0, b.topHeight, false);
+    // Roof
+    ctx.fillStyle = b.roofColor;
+    ctx.fillRect(x, b.topHeight-8, bw, 8);
+    // Antenna
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x+bw/2-2, b.topHeight-8-18, 4, 18);
+    ctx.fillRect(x+bw/2-6, b.topHeight-8-18, 12, 3);
+
+    // ── Bottom building ──
+    ctx.fillStyle = b.color;
+    ctx.fillRect(x, b.bottomY, bw, canvas.height-b.bottomY);
+    ctx.fillStyle = b.darkColor;
+    ctx.fillRect(x+bw-8, b.bottomY, 8, canvas.height-b.bottomY);
+    drawWindows(b, b.bottomY, canvas.height-50, false);
+    // Top cap
+    ctx.fillStyle = b.roofColor;
+    ctx.fillRect(x, b.bottomY, bw, 8);
+
+    // ── Damage overlay (clipped) ──
+    if (buildingDamage && buildingDamage.building === b) {
+        drawBuildingDamage(b);
+    }
+}
+
+function drawWindows(b, yStart, yEnd, skipNearDamage) {
+    const x = b.x;
+    for (let wy = yStart+14; wy < yEnd-12; wy += 22) {
+        for (let col = 0; col < 3; col++) {
+            const wx = x + 10 + col*20;
+            if (wx+8 > x+buildingWidth-10) continue;
+            ctx.fillStyle = 'rgba(255,255,200,0.55)';
+            ctx.fillRect(wx, wy, 9, 13);
+            // Window frame
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(wx, wy, 9, 13);
+        }
+    }
+}
+
+// ─── Building Damage (the fixed version) ─────────────────────────────────────
+// All drawing is clipped to the actual building rectangle so nothing floats in air.
+
+function drawBuildingDamage(b) {
+    const dmg = buildingDamage;
+    const t = Date.now() * 0.004;
+
+    // Impact position (absolute)
+    const cx = b.x + dmg.relX;
+    const cy = dmg.impactY;
+
+    // Which building rect does this hit sit in?
+    const rectY     = dmg.hitTop ? 0          : b.bottomY;
+    const rectH     = dmg.hitTop ? b.topHeight : (canvas.height - 50 - b.bottomY);
+
+    ctx.save();
+
+    // ── Clip to building face ──────────────────────────────────────
+    ctx.beginPath();
+    ctx.rect(b.x, rectY, buildingWidth, rectH);
+    ctx.clip();
+
+    // 1. Scorch / burn halo
+    const scorchR = ctx.createRadialGradient(cx, cy, 4, cx, cy, 40);
+    scorchR.addColorStop(0,   'rgba(10,5,0,0.85)');
+    scorchR.addColorStop(0.45,'rgba(30,15,5,0.55)');
+    scorchR.addColorStop(1,   'rgba(50,30,10,0)');
+    ctx.fillStyle = scorchR;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 42, 34, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // 2. Structural cracks (stay inside the clip)
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    dmg.cracks.forEach(crack => {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        let px = cx, py = cy;
+        crack.forEach(seg => { px += seg.dx; py += seg.dy; ctx.lineTo(px, py); });
+        ctx.stroke();
+    });
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#2a2a2a';
+    dmg.smallCracks.forEach(sc => {
+        ctx.beginPath();
+        ctx.moveTo(cx+sc.ox, cy+sc.oy);
+        ctx.lineTo(cx+sc.ox+sc.dx, cy+sc.oy+sc.dy);
+        ctx.stroke();
+    });
+
+    // 3. Hole / cavity
+    const holeR = ctx.createRadialGradient(cx, cy, 0, cx, cy, 22);
+    holeR.addColorStop(0,   '#050505');
+    holeR.addColorStop(0.5, '#0f0a08');
+    holeR.addColorStop(0.85,'#1a1210');
+    holeR.addColorStop(1,   'rgba(30,20,15,0)');
+    ctx.fillStyle = holeR;
+    ctx.beginPath();
+    // Irregular polygon for the hole
+    const pts = dmg.holePts;
+    ctx.moveTo(cx+pts[0].x, cy+pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(cx+pts[i].x, cy+pts[i].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Inner deep-black core
+    ctx.fillStyle = '#030303';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 10, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // 4. Broken / dark windows near impact (INSIDE the building rect)
+    dmg.brokenWindows.forEach(w => {
+        const wx = b.x + w.rx;
+        const wy = w.ry + rectY;       // y is relative to the rect top
+        if (wy < rectY || wy+13 > rectY+rectH) return; // safety guard
+        ctx.fillStyle = '#080808';
+        ctx.fillRect(wx, wy, 9, 13);
+        if (w.glow) {
+            const alpha = 0.35 + Math.sin(t*3 + w.seed)*0.28;
+            ctx.globalAlpha = Math.max(0, alpha);
+            ctx.fillStyle = '#FF5500';
+            ctx.fillRect(wx+1, wy+1, 7, 11);
+            ctx.globalAlpha = 1;
+        }
+    });
+
+    // 5. Fire — animated, clipped within the building
+    // Flames hang downward for top building (hitTop), upward for bottom building
+    const flameDir = dmg.hitTop ? 1 : -1; // +1 = downward, -1 = upward
+    const coreOffset = dmg.hitTop ? 2 : -2;
+    for (let i=0;i<9;i++) {
+        const a = (i/9)*Math.PI*2 + t;
+        const d = 5 + Math.sin(t*2.2+i*1.4)*4;
+        const fx = cx + Math.cos(a)*d;
+        const fy = cy + Math.sin(a)*d*0.55 + coreOffset;
+        const fs = 4 + Math.sin(t*3.1+i*0.9)*3;
+        ctx.globalAlpha = Math.max(0, 0.6 + Math.sin(t*2+i)*0.25);
+        const cols = ['#FFF8CC','#FFDD44','#FF9900','#FF4400','#CC2200'];
+        ctx.fillStyle = cols[i%cols.length];
+        ctx.beginPath();
+        ctx.arc(fx, fy, fs, 0, Math.PI*2);
+        ctx.fill();
+    }
+    // Central hot core
+    ctx.globalAlpha = 0.75 + Math.sin(t*5)*0.18;
+    const coreG = ctx.createRadialGradient(cx, cy+coreOffset, 0, cx, cy+coreOffset, 9);
+    coreG.addColorStop(0, '#FFFFFF');
+    coreG.addColorStop(0.3,'#FFEE88');
+    coreG.addColorStop(0.7,'#FF6600');
+    coreG.addColorStop(1,  'rgba(255,50,0,0)');
+    ctx.fillStyle = coreG;
+    ctx.beginPath();
+    ctx.arc(cx, cy+coreOffset, 9, 0, Math.PI*2);
+    ctx.fill();
+    // Flame tongues — direction depends on which building was hit
+    for (let i=0;i<4;i++) {
+        const tx = cx + (i-1.5)*7 + Math.sin(t*3+i*2)*3;
+        const th = (12 + Math.sin(t*4+i*1.1)*6) * flameDir;
+        ctx.globalAlpha = Math.max(0, 0.5+Math.sin(t*3+i)*0.3);
+        const tg = ctx.createLinearGradient(tx, cy, tx, cy+th);
+        tg.addColorStop(0, '#FF6600');
+        tg.addColorStop(0.5,'#FF4400');
+        tg.addColorStop(1,  'rgba(200,30,0,0)');
+        ctx.fillStyle = tg;
+        ctx.beginPath();
+        ctx.moveTo(tx-3, cy);
+        ctx.quadraticCurveTo(tx+Math.sin(t*2+i)*2, cy+th*0.55, tx, cy+th);
+        ctx.quadraticCurveTo(tx+2+Math.sin(t*2.5+i)*2, cy+th*0.55, tx+3, cy);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore(); // restore clip
+}
+
+// ─── Create building damage data ─────────────────────────────────────────────
+
+function createBuildingDamage(building, impactX, impactY) {
+    const relX = impactX - building.x;
+    const hitTop = impactY < building.topHeight;
+
+    // Cracks (offset vectors from impact center)
+    const cracks = [];
+    const numCracks = 7 + Math.floor(Math.random()*3);
+    for (let i=0;i<numCracks;i++) {
+        const angle = (Math.PI*2/numCracks)*i + (Math.random()-0.5)*0.6;
+        const segs = [];
+        const numSegs = 3 + Math.floor(Math.random()*3);
+        for (let j=0;j<numSegs;j++) {
+            const len = 9 + Math.random()*16;
+            segs.push({
+                dx: Math.cos(angle+(Math.random()-0.5)*0.7)*len,
+                dy: Math.sin(angle+(Math.random()-0.5)*0.7)*len
+            });
+        }
+        cracks.push(segs);
+    }
+
+    const smallCracks = [];
+    for (let i=0;i<14;i++) {
+        const a = Math.random()*Math.PI*2;
+        const d = 12+Math.random()*14;
+        smallCracks.push({
+            ox: Math.cos(a)*d, oy: Math.sin(a)*d,
+            dx: Math.cos(a+(Math.random()-0.5))*( 5+Math.random()*10),
+            dy: Math.sin(a+(Math.random()-0.5))*(5+Math.random()*10)
+        });
+    }
+
+    // Irregular hole polygon
+    const holePts = [];
+    const holePtCount = 10;
+    for (let i=0;i<holePtCount;i++) {
+        const a = (Math.PI*2/holePtCount)*i + (Math.random()-0.5)*0.4;
+        const r = 13 + Math.random()*7;
+        holePts.push({ x: Math.cos(a)*r, y: Math.sin(a)*r*0.75 });
+    }
+
+    // Broken windows — stored as offsets relative to building.x and the building rect top
+    const rectY  = hitTop ? 0 : building.bottomY;
+    const rectH  = hitTop ? building.topHeight : (canvas.height - 50 - building.bottomY);
+    const localImpactY = impactY - rectY; // impact y relative to rect top
+
+    const brokenWindows = [];
+    for (let row=-2;row<=2;row++) {
+        for (let col=0;col<3;col++) {
+            const rx = 10 + col*20;          // relative to building.x
+            const ry = localImpactY + row*22 - 6; // relative to rectY
+            if (rx+9 > buildingWidth-10) continue;
+            if (ry < 10 || ry+13 > rectH-10) continue;
+            const distSq = Math.pow(rx - relX, 2) + Math.pow(row*22, 2);
+            if (distSq > 2200) continue; // only windows near impact
+            brokenWindows.push({
+                rx, ry,
+                glow: Math.random() > 0.35,
+                seed: Math.random()*10
+            });
+        }
+    }
+
+    // Debris burst
+    const debrisColors = ['#555','#777','#444','#8B7355','#696969','#3a3a3a'];
+    for (let i=0;i<20;i++) {
+        debrisParticles.push(new DebrisParticle(
+            impactX+(Math.random()-0.5)*20,
+            impactY+(Math.random()-0.5)*10,
+            debrisColors[Math.floor(Math.random()*debrisColors.length)]
+        ));
+    }
+
+    buildingDamage = { building, relX, impactY, hitTop, cracks, smallCracks, holePts, brokenWindows };
+}
+
+// ─── Game logic ──────────────────────────────────────────────────────────────
+
+function updateAirplane() {
+    if (gameState === 'playing') {
+        airplane.velocity += airplane.gravity;
+        airplane.y += airplane.velocity;
+        airplane.rotation = Math.min(Math.max(airplane.velocity*0.08, -0.4), 0.6);
+
+        if (airplane.y + airplane.height >= canvas.height - 50) {
+            createExplosion(airplane.x+airplane.width/2, canvas.height-50);
+            gameOver();
+        }
+        if (airplane.y <= 0) { airplane.y = 0; airplane.velocity = 0; }
+    } else if (gameState === 'start') {
+        airplane.y = 250 + Math.sin(Date.now()*0.003)*10;
+        airplane.velocity = 0; airplane.rotation = 0;
+    }
+}
+
+function updateBuildings() {
+    if (gameState !== 'playing') return;
+    buildingTimer++;
+    if (buildingTimer > 120) { buildings.push(createBuilding()); buildingTimer = 0; }
+
+    buildings.forEach((b, i) => {
+        b.x -= 2;
+        if (b.x + buildingWidth < 0) { buildings.splice(i,1); return; }
+
+        if (!b.scored && b.x+buildingWidth < airplane.x) {
+            b.scored = true; score++;
+            document.getElementById('score').textContent = score;
+        }
+
+        if (airplane.x < b.x+buildingWidth &&
+            airplane.x+airplane.width > b.x &&
+            (airplane.y < b.topHeight || airplane.y+airplane.height > b.bottomY)) {
+
+            const hitTop = airplane.y < b.topHeight;
+            const surfaceX = b.x + 8 + Math.random()*(buildingWidth-16);
+            let surfaceY = airplane.y + airplane.height/2;
+            if (hitTop) surfaceY = Math.max(20, Math.min(surfaceY, b.topHeight-20));
+            else        surfaceY = Math.max(b.bottomY+20, Math.min(surfaceY, canvas.height-70));
+
+            createExplosion(surfaceX, surfaceY);
+            createBuildingDamage(b, surfaceX, surfaceY);
+            gameOver();
+        }
+    });
+}
+
+function createExplosion(x, y) {
+    for (let i=0;i<45;i++) explosionParticles.push(new Particle(x,y));
+}
+
+function updateExplosion() {
+    for (let i=explosionParticles.length-1;i>=0;i--) {
+        explosionParticles[i].update();
+        if (explosionParticles[i].life <= 0) explosionParticles.splice(i,1);
+    }
+}
+
+function updateSmoke() {
+    if (buildingDamage && gameState === 'gameOver') {
+        const b = buildingDamage.building;
+        const sx = b.x + buildingDamage.relX;
+        const sy = buildingDamage.impactY;
+        if (Math.random() < 0.4) smokeParticles.push(new SmokeParticle(sx, sy));
+    }
+    for (let i=smokeParticles.length-1;i>=0;i--) {
+        smokeParticles[i].update();
+        if (smokeParticles[i].life <= 0) smokeParticles.splice(i,1);
+    }
+    for (let i=debrisParticles.length-1;i>=0;i--) {
+        debrisParticles[i].update();
+        if (debrisParticles[i].life <= 0 || debrisParticles[i].y > canvas.height) debrisParticles.splice(i,1);
+    }
+}
+
+function drawGround() {
+    ctx.fillStyle = '#2D7A2D';
+    ctx.fillRect(0, canvas.height-50, canvas.width, 50);
+    ctx.fillStyle = '#1E5C1E';
+    groundOffset -= (gameState === 'playing' ? 2 : 0);
+    if (groundOffset <= -20) groundOffset = 0;
+    for (let x=groundOffset; x<canvas.width; x+=20) ctx.fillRect(x, canvas.height-50, 10, 50);
+    // Ground line
+    ctx.fillStyle = '#3A963A';
+    ctx.fillRect(0, canvas.height-50, canvas.width, 3);
+}
+
+// ─── Controls ────────────────────────────────────────────────────────────────
+
+function fly() {
+    if (gameState === 'start') startGame();
+    else if (gameState === 'playing') airplane.velocity = airplane.jumpStrength;
+    else if (gameState === 'gameOver' && canRestart) restartGame();
+}
+
+function startGame() {
+    gameState = 'playing'; score = 0;
+    airplane.y = 250; airplane.velocity = 0; airplane.rotation = 0;
+    buildings = []; buildingTimer = 0;
+    explosionParticles = []; smokeParticles = []; debrisParticles = [];
+    buildingDamage = null;
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('score').textContent = '0';
+}
+
+function gameOver() {
+    if (gameState === 'gameOver') return;
+    gameState = 'gameOver';
+    canRestart = false;
+    if (score > bestScore) bestScore = score;
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('bestScore').textContent = bestScore;
+    setTimeout(() => { document.getElementById('gameOver').style.display = 'block'; canRestart = true; }, 1200);
+}
+
+function restartGame() {
+    document.getElementById('gameOver').style.display = 'none';
+    startGame();
+}
+
+// ─── Game loop ───────────────────────────────────────────────────────────────
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Sky gradient
+    const sky = ctx.createLinearGradient(0,0,0,canvas.height);
+    sky.addColorStop(0,   '#5BBAE8');
+    sky.addColorStop(0.68,'#A8D8EA');
+    sky.addColorStop(0.68,'#3A9A3A');
+    sky.addColorStop(1,   '#2D7A2D');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    updateClouds();
+    clouds.forEach(drawCloud);
+
+    updateAirplane();
+    updateBuildings();
+    updateExplosion();
+    updateSmoke();
+
+    buildings.forEach(drawBuilding);
+
+    if (gameState !== 'gameOver' || explosionParticles.length === 0) drawAirplane();
+
+    explosionParticles.forEach(p => p.draw());
+    smokeParticles.forEach(p => p.draw());
+    debrisParticles.forEach(p => p.draw());
+
+    drawGround();
+
+    requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener('click', fly);
+document.addEventListener('keydown', e => { if (e.code==='Space') { e.preventDefault(); fly(); } });
+
+initClouds();
+gameLoop();
+</script>
+</body>
+</html>
