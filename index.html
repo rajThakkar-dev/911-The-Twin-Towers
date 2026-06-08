@@ -45,6 +45,186 @@
             pointer-events: none;
             letter-spacing: -1px;
         }
+
+        /* ── Settings button (gear icon) ── */
+        #settingsBtn {
+            position: absolute;
+            top: 16px; right: 16px;
+            width: 36px; height: 36px;
+            background: rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            pointer-events: all;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            transition: background 0.15s, transform 0.15s;
+            z-index: 20;
+        }
+        #settingsBtn:hover { background: rgba(0,0,0,0.65); transform: rotate(30deg); }
+
+        /* ── Settings panel ── */
+        #settingsPanel {
+            position: absolute;
+            top: 60px; right: 12px;
+            width: 230px;
+            background: rgba(10,10,20,0.96);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 18px 18px 16px;
+            color: white;
+            pointer-events: all;
+            z-index: 30;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        #settingsPanel.open { display: block; }
+        #settingsPanel h3 {
+            margin: 0 0 14px 0;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.5);
+            font-weight: 700;
+        }
+
+        /* Speed slider */
+        .setting-row { margin-bottom: 16px; }
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .setting-label span:last-child {
+            font-size: 12px;
+            color: #FF6B35;
+            font-weight: 700;
+            background: rgba(255,107,53,0.12);
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.12);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B35, #FF4500);
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(255,69,0,0.5);
+        }
+        .speed-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: rgba(255,255,255,0.35);
+            margin-top: 5px;
+        }
+
+        /* Difficulty toggle */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .toggle-info { flex: 1; }
+        .toggle-info .toggle-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .toggle-info .toggle-desc {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            line-height: 1.4;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 42px; height: 24px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.12);
+            transition: background 0.25s;
+        }
+        .toggle-switch input:checked + .toggle-track { background: #FF4500; }
+        .toggle-knob {
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: white;
+            transition: transform 0.25s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+        .toggle-switch input:checked ~ .toggle-knob { transform: translateX(18px); }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            margin: 14px 0;
+        }
+
+        /* HUD badge shown during play */
+        #hud {
+            position: absolute;
+            bottom: 58px; right: 10px;
+            display: flex; gap: 6px;
+            pointer-events: none;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .hud-badge {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            padding: 4px 9px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: border-color 0.4s;
+        }
+        /* The speed value — color transitions via JS */
+        #hudSpeedVal {
+            font-weight: 800;
+            font-size: 12px;
+            transition: color 0.4s;
+        }
+        /* Arrow indicator — only shown in progressive mode */
+        #hudArrow {
+            font-size: 11px;
+            display: none;
+            transition: color 0.4s;
+        }
+        @keyframes arrowPulse {
+            0%, 100% { transform: translateY(0);   opacity: 1;   }
+            50%       { transform: translateY(-2px); opacity: 0.5; }
+        }
+        #hudArrow.active {
+            display: inline-block;
+            animation: arrowPulse 0.9s ease-in-out infinite;
+        }
+
         #gameOver, #startScreen {
             background: rgba(0,0,0,0.85);
             color: white;
@@ -89,14 +269,61 @@
             text-align: center;
             pointer-events: none;
             font-size: 13px;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body>
 <div id="gameContainer">
     <canvas id="gameCanvas" width="400" height="600"></canvas>
+
     <div id="ui">
         <div id="score">0</div>
+
+        <!-- Settings gear -->
+        <div id="settingsBtn" title="Settings">⚙️</div>
+
+        <!-- Settings panel -->
+        <div id="settingsPanel">
+            <h3>⚙ Settings</h3>
+
+            <!-- Speed slider -->
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>Game Speed</span>
+                    <span id="speedLabel">Normal</span>
+                </div>
+                <input type="range" id="speedSlider" min="1" max="5" step="1" value="3">
+                <div class="speed-labels">
+                    <span>Slow</span>
+                    <span>Normal</span>
+                    <span>Fast</span>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Progressive difficulty toggle -->
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <div class="toggle-title">Progressive Difficulty</div>
+                    <div class="toggle-desc" id="toggleDesc">Speed stays the same throughout</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="diffToggle">
+                    <div class="toggle-track"></div>
+                    <div class="toggle-knob"></div>
+                </label>
+            </div>
+        </div>
+
+        <!-- HUD during gameplay -->
+        <div id="hud" style="display:none;">
+            <div class="hud-badge" id="hudBadge">
+                Speed&nbsp;<span id="hudSpeedVal">×1.0</span><span id="hudArrow">↑</span>
+            </div>
+        </div>
+
         <div id="startScreen">
             <h2>✈️ Flappy Airplane</h2>
             <p>Click or press SPACE to start!</p>
@@ -111,7 +338,6 @@
             <div style="margin-top:10px;font-size:13px;opacity:0.5;">or press SPACE / click anywhere</div>
         </div>
     </div>
-    <div class="instructions">Click anywhere or press SPACE to fly</div>
 </div>
 
 <script>
@@ -124,8 +350,125 @@ let bestScore = 0;
 let explosionParticles = [];
 let smokeParticles = [];
 let debrisParticles = [];
-let buildingDamage = null; // { building, relX, relY, hitTop, cracks, ... }
+let buildingDamage = null;
 let canRestart = false;
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+// speedLevel: 1–5  →  multiplier map
+const SPEED_MULTIPLIERS = { 1: 0.55, 2: 0.75, 3: 1.0, 4: 1.4, 5: 1.9 };
+const SPEED_NAMES       = { 1: 'Slow', 2: 'Easy', 3: 'Normal', 4: 'Fast', 5: 'Insane' };
+let speedLevel = 3;               // default Normal
+let progressiveDifficulty = false; // default: constant speed
+
+// Derive the actual scroll speed each frame
+function getScrollSpeed() {
+    const base = 2 * SPEED_MULTIPLIERS[speedLevel];
+    if (!progressiveDifficulty) return base;
+    // Progressive: +5% per 5 points, cap at 3× base
+    const boost = Math.min(Math.floor(score / 5) * 0.05, 2.0);
+    return base * (1 + boost);
+}
+
+// Settings UI wiring
+const speedSlider   = document.getElementById('speedSlider');
+const speedLabel    = document.getElementById('speedLabel');
+const diffToggle    = document.getElementById('diffToggle');
+const toggleDesc    = document.getElementById('toggleDesc');
+const settingsBtn   = document.getElementById('settingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const hudSpeedVal   = document.getElementById('hudSpeedVal');
+const hudBadge      = document.getElementById('hudBadge');
+const hudArrow      = document.getElementById('hudArrow');
+const hud           = document.getElementById('hud');
+
+speedSlider.addEventListener('input', () => {
+    speedLevel = parseInt(speedSlider.value);
+    speedLabel.textContent = SPEED_NAMES[speedLevel];
+});
+
+diffToggle.addEventListener('change', () => {
+    progressiveDifficulty = diffToggle.checked;
+    toggleDesc.textContent = progressiveDifficulty
+        ? 'Speed increases as your score grows'
+        : 'Speed stays the same throughout';
+});
+
+settingsBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    settingsPanel.classList.toggle('open');
+});
+// Close panel if clicking outside
+document.addEventListener('click', e => {
+    if (!settingsPanel.contains(e.target) && e.target !== settingsBtn) {
+        settingsPanel.classList.remove('open');
+    }
+});
+
+function updateHUD() {
+    const spd  = getScrollSpeed();
+    const base = 2 * SPEED_MULTIPLIERS[speedLevel];
+    const boost = progressiveDifficulty ? (spd - base) / base : 0; // 0 → 2.0
+
+    hudSpeedVal.textContent = '×' + spd.toFixed(1);
+
+    // Color + border based on boost level
+    let color, border;
+    if (!progressiveDifficulty || boost <= 0) {
+        color  = 'rgba(255,255,255,0.85)';
+        border = 'rgba(255,255,255,0.12)';
+    } else if (boost < 0.5) {
+        // green zone: warming up
+        const t = boost / 0.5;
+        color  = lerpColor('#FFFFFF', '#7BFF6B', t);
+        border = lerpColor('rgba(255,255,255,0.12)', 'rgba(123,255,107,0.4)', t);
+    } else if (boost < 1.0) {
+        // orange zone: getting spicy
+        const t = (boost - 0.5) / 0.5;
+        color  = lerpColor('#7BFF6B', '#FFB347', t);
+        border = lerpColor('rgba(123,255,107,0.4)', 'rgba(255,179,71,0.5)', t);
+    } else {
+        // red zone: danger
+        const t = Math.min((boost - 1.0) / 1.0, 1);
+        color  = lerpColor('#FFB347', '#FF4444', t);
+        border = lerpColor('rgba(255,179,71,0.5)', 'rgba(255,68,68,0.6)', t);
+    }
+
+    hudSpeedVal.style.color  = color;
+    hudArrow.style.color     = color;
+    hudBadge.style.borderColor = border;
+
+    // Arrow: show & animate only when progressive is on AND speed has actually boosted
+    if (progressiveDifficulty && boost > 0) {
+        hudArrow.classList.add('active');
+    } else {
+        hudArrow.classList.remove('active');
+    }
+}
+
+// Linearly interpolate between two hex/rgba color strings
+// Supports '#RRGGBB' and 'rgba(r,g,b,a)' formats
+function lerpColor(a, b, t) {
+    const pa = parseColor(a), pb = parseColor(b);
+    const r = Math.round(pa[0] + (pb[0]-pa[0])*t);
+    const g = Math.round(pa[1] + (pb[1]-pa[1])*t);
+    const bl = Math.round(pa[2] + (pb[2]-pa[2])*t);
+    const al = +(pa[3] + (pb[3]-pa[3])*t).toFixed(2);
+    return `rgba(${r},${g},${bl},${al})`;
+}
+function parseColor(c) {
+    if (c.startsWith('#')) {
+        const hex = c.slice(1);
+        return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16), 1];
+    }
+    const m = c.match(/rgba?\(([^)]+)\)/);
+    if (m) {
+        const parts = m[1].split(',').map(Number);
+        return [parts[0]||0, parts[1]||0, parts[2]||0, parts[3]!=null ? parts[3] : 1];
+    }
+    return [255,255,255,1];
+}
+
+// ─── Airplane ────────────────────────────────────────────────────────────────
 
 const airplane = {
     x: 80, y: 250,
@@ -243,26 +586,25 @@ function drawCloud(c) {
 }
 
 function updateClouds() {
+    const spd = gameState === 'playing' ? getScrollSpeed() : 1.0;
     clouds.forEach(c => {
-        c.x -= c.speed;
+        c.x -= c.speed * (spd / 2);
         if (c.x + c.w < 0) { c.x = canvas.width+50; c.y = Math.random()*180+40; }
     });
 }
 
-// ─── Airplane ────────────────────────────────────────────────────────────────
+// ─── Airplane drawing ─────────────────────────────────────────────────────────
 
 function drawAirplane() {
     ctx.save();
     ctx.translate(airplane.x+airplane.width/2, airplane.y+airplane.height/2);
     ctx.rotate(airplane.rotation);
 
-    // Body
     ctx.fillStyle = '#ECECEC';
     ctx.beginPath();
     ctx.roundRect(-airplane.width/2, -airplane.height/2, airplane.width, airplane.height, 4);
     ctx.fill();
 
-    // Nose cone
     ctx.fillStyle = '#CCCCCC';
     ctx.beginPath();
     ctx.moveTo(airplane.width/2, 0);
@@ -271,19 +613,14 @@ function drawAirplane() {
     ctx.closePath();
     ctx.fill();
 
-    // Wings
     ctx.fillStyle = '#B8B8B8';
     ctx.fillRect(-8, -airplane.height/2-13, 18, 13);
     ctx.fillRect(-8, airplane.height/2, 18, 13);
-
-    // Tail
     ctx.fillRect(-airplane.width/2-9, -9, 9, 18);
 
-    // Window
     ctx.fillStyle = '#4169E1';
     ctx.fillRect(airplane.width/2-14, -5, 9, 10);
 
-    // Red stripe
     ctx.fillStyle = '#FF4500';
     ctx.fillRect(-airplane.width/2, -2, airplane.width, 4);
 
@@ -310,40 +647,31 @@ function createBuilding() {
 
 function drawBuilding(b) {
     const x = b.x, bw = buildingWidth;
-
-    // ── Top building ──
     ctx.fillStyle = b.color;
     ctx.fillRect(x, 0, bw, b.topHeight);
-    // Dark side shading
     ctx.fillStyle = b.darkColor;
     ctx.fillRect(x+bw-8, 0, 8, b.topHeight);
-    // Windows
-    drawWindows(b, 0, b.topHeight, false);
-    // Roof
+    drawWindows(b, 0, b.topHeight);
     ctx.fillStyle = b.roofColor;
     ctx.fillRect(x, b.topHeight-8, bw, 8);
-    // Antenna
     ctx.fillStyle = '#333';
     ctx.fillRect(x+bw/2-2, b.topHeight-8-18, 4, 18);
     ctx.fillRect(x+bw/2-6, b.topHeight-8-18, 12, 3);
 
-    // ── Bottom building ──
     ctx.fillStyle = b.color;
     ctx.fillRect(x, b.bottomY, bw, canvas.height-b.bottomY);
     ctx.fillStyle = b.darkColor;
     ctx.fillRect(x+bw-8, b.bottomY, 8, canvas.height-b.bottomY);
-    drawWindows(b, b.bottomY, canvas.height-50, false);
-    // Top cap
+    drawWindows(b, b.bottomY, canvas.height-50);
     ctx.fillStyle = b.roofColor;
     ctx.fillRect(x, b.bottomY, bw, 8);
 
-    // ── Damage overlay (clipped) ──
     if (buildingDamage && buildingDamage.building === b) {
         drawBuildingDamage(b);
     }
 }
 
-function drawWindows(b, yStart, yEnd, skipNearDamage) {
+function drawWindows(b, yStart, yEnd) {
     const x = b.x;
     for (let wy = yStart+14; wy < yEnd-12; wy += 22) {
         for (let col = 0; col < 3; col++) {
@@ -351,7 +679,6 @@ function drawWindows(b, yStart, yEnd, skipNearDamage) {
             if (wx+8 > x+buildingWidth-10) continue;
             ctx.fillStyle = 'rgba(255,255,200,0.55)';
             ctx.fillRect(wx, wy, 9, 13);
-            // Window frame
             ctx.strokeStyle = 'rgba(0,0,0,0.2)';
             ctx.lineWidth = 0.5;
             ctx.strokeRect(wx, wy, 9, 13);
@@ -359,29 +686,21 @@ function drawWindows(b, yStart, yEnd, skipNearDamage) {
     }
 }
 
-// ─── Building Damage (the fixed version) ─────────────────────────────────────
-// All drawing is clipped to the actual building rectangle so nothing floats in air.
+// ─── Building Damage ─────────────────────────────────────────────────────────
 
 function drawBuildingDamage(b) {
     const dmg = buildingDamage;
     const t = Date.now() * 0.004;
-
-    // Impact position (absolute)
     const cx = b.x + dmg.relX;
     const cy = dmg.impactY;
-
-    // Which building rect does this hit sit in?
-    const rectY     = dmg.hitTop ? 0          : b.bottomY;
-    const rectH     = dmg.hitTop ? b.topHeight : (canvas.height - 50 - b.bottomY);
+    const rectY = dmg.hitTop ? 0 : b.bottomY;
+    const rectH = dmg.hitTop ? b.topHeight : (canvas.height - 50 - b.bottomY);
 
     ctx.save();
-
-    // ── Clip to building face ──────────────────────────────────────
     ctx.beginPath();
     ctx.rect(b.x, rectY, buildingWidth, rectH);
     ctx.clip();
 
-    // 1. Scorch / burn halo
     const scorchR = ctx.createRadialGradient(cx, cy, 4, cx, cy, 40);
     scorchR.addColorStop(0,   'rgba(10,5,0,0.85)');
     scorchR.addColorStop(0.45,'rgba(30,15,5,0.55)');
@@ -391,7 +710,6 @@ function drawBuildingDamage(b) {
     ctx.ellipse(cx, cy, 42, 34, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // 2. Structural cracks (stay inside the clip)
     ctx.strokeStyle = '#111';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -411,7 +729,6 @@ function drawBuildingDamage(b) {
         ctx.stroke();
     });
 
-    // 3. Hole / cavity
     const holeR = ctx.createRadialGradient(cx, cy, 0, cx, cy, 22);
     holeR.addColorStop(0,   '#050505');
     holeR.addColorStop(0.5, '#0f0a08');
@@ -419,24 +736,21 @@ function drawBuildingDamage(b) {
     holeR.addColorStop(1,   'rgba(30,20,15,0)');
     ctx.fillStyle = holeR;
     ctx.beginPath();
-    // Irregular polygon for the hole
     const pts = dmg.holePts;
     ctx.moveTo(cx+pts[0].x, cy+pts[0].y);
     for (let i=1;i<pts.length;i++) ctx.lineTo(cx+pts[i].x, cy+pts[i].y);
     ctx.closePath();
     ctx.fill();
 
-    // Inner deep-black core
     ctx.fillStyle = '#030303';
     ctx.beginPath();
     ctx.ellipse(cx, cy, 10, 8, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // 4. Broken / dark windows near impact (INSIDE the building rect)
     dmg.brokenWindows.forEach(w => {
         const wx = b.x + w.rx;
-        const wy = w.ry + rectY;       // y is relative to the rect top
-        if (wy < rectY || wy+13 > rectY+rectH) return; // safety guard
+        const wy = w.ry + rectY;
+        if (wy < rectY || wy+13 > rectY+rectH) return;
         ctx.fillStyle = '#080808';
         ctx.fillRect(wx, wy, 9, 13);
         if (w.glow) {
@@ -448,9 +762,7 @@ function drawBuildingDamage(b) {
         }
     });
 
-    // 5. Fire — animated, clipped within the building
-    // Flames hang downward for top building (hitTop), upward for bottom building
-    const flameDir = dmg.hitTop ? 1 : -1; // +1 = downward, -1 = upward
+    const flameDir = dmg.hitTop ? 1 : -1;
     const coreOffset = dmg.hitTop ? 2 : -2;
     for (let i=0;i<9;i++) {
         const a = (i/9)*Math.PI*2 + t;
@@ -465,7 +777,6 @@ function drawBuildingDamage(b) {
         ctx.arc(fx, fy, fs, 0, Math.PI*2);
         ctx.fill();
     }
-    // Central hot core
     ctx.globalAlpha = 0.75 + Math.sin(t*5)*0.18;
     const coreG = ctx.createRadialGradient(cx, cy+coreOffset, 0, cx, cy+coreOffset, 9);
     coreG.addColorStop(0, '#FFFFFF');
@@ -476,7 +787,6 @@ function drawBuildingDamage(b) {
     ctx.beginPath();
     ctx.arc(cx, cy+coreOffset, 9, 0, Math.PI*2);
     ctx.fill();
-    // Flame tongues — direction depends on which building was hit
     for (let i=0;i<4;i++) {
         const tx = cx + (i-1.5)*7 + Math.sin(t*3+i*2)*3;
         const th = (12 + Math.sin(t*4+i*1.1)*6) * flameDir;
@@ -494,16 +804,12 @@ function drawBuildingDamage(b) {
         ctx.fill();
     }
     ctx.globalAlpha = 1;
-    ctx.restore(); // restore clip
+    ctx.restore();
 }
-
-// ─── Create building damage data ─────────────────────────────────────────────
 
 function createBuildingDamage(building, impactX, impactY) {
     const relX = impactX - building.x;
     const hitTop = impactY < building.topHeight;
-
-    // Cracks (offset vectors from impact center)
     const cracks = [];
     const numCracks = 7 + Math.floor(Math.random()*3);
     for (let i=0;i<numCracks;i++) {
@@ -519,50 +825,37 @@ function createBuildingDamage(building, impactX, impactY) {
         }
         cracks.push(segs);
     }
-
     const smallCracks = [];
     for (let i=0;i<14;i++) {
         const a = Math.random()*Math.PI*2;
         const d = 12+Math.random()*14;
         smallCracks.push({
             ox: Math.cos(a)*d, oy: Math.sin(a)*d,
-            dx: Math.cos(a+(Math.random()-0.5))*( 5+Math.random()*10),
+            dx: Math.cos(a+(Math.random()-0.5))*(5+Math.random()*10),
             dy: Math.sin(a+(Math.random()-0.5))*(5+Math.random()*10)
         });
     }
-
-    // Irregular hole polygon
     const holePts = [];
-    const holePtCount = 10;
-    for (let i=0;i<holePtCount;i++) {
-        const a = (Math.PI*2/holePtCount)*i + (Math.random()-0.5)*0.4;
+    for (let i=0;i<10;i++) {
+        const a = (Math.PI*2/10)*i + (Math.random()-0.5)*0.4;
         const r = 13 + Math.random()*7;
         holePts.push({ x: Math.cos(a)*r, y: Math.sin(a)*r*0.75 });
     }
-
-    // Broken windows — stored as offsets relative to building.x and the building rect top
-    const rectY  = hitTop ? 0 : building.bottomY;
-    const rectH  = hitTop ? building.topHeight : (canvas.height - 50 - building.bottomY);
-    const localImpactY = impactY - rectY; // impact y relative to rect top
-
+    const rectY = hitTop ? 0 : building.bottomY;
+    const rectH = hitTop ? building.topHeight : (canvas.height - 50 - building.bottomY);
+    const localImpactY = impactY - rectY;
     const brokenWindows = [];
     for (let row=-2;row<=2;row++) {
         for (let col=0;col<3;col++) {
-            const rx = 10 + col*20;          // relative to building.x
-            const ry = localImpactY + row*22 - 6; // relative to rectY
+            const rx = 10 + col*20;
+            const ry = localImpactY + row*22 - 6;
             if (rx+9 > buildingWidth-10) continue;
             if (ry < 10 || ry+13 > rectH-10) continue;
             const distSq = Math.pow(rx - relX, 2) + Math.pow(row*22, 2);
-            if (distSq > 2200) continue; // only windows near impact
-            brokenWindows.push({
-                rx, ry,
-                glow: Math.random() > 0.35,
-                seed: Math.random()*10
-            });
+            if (distSq > 2200) continue;
+            brokenWindows.push({ rx, ry, glow: Math.random() > 0.35, seed: Math.random()*10 });
         }
     }
-
-    // Debris burst
     const debrisColors = ['#555','#777','#444','#8B7355','#696969','#3a3a3a'];
     for (let i=0;i<20;i++) {
         debrisParticles.push(new DebrisParticle(
@@ -571,7 +864,6 @@ function createBuildingDamage(building, impactX, impactY) {
             debrisColors[Math.floor(Math.random()*debrisColors.length)]
         ));
     }
-
     buildingDamage = { building, relX, impactY, hitTop, cracks, smallCracks, holePts, brokenWindows };
 }
 
@@ -582,7 +874,6 @@ function updateAirplane() {
         airplane.velocity += airplane.gravity;
         airplane.y += airplane.velocity;
         airplane.rotation = Math.min(Math.max(airplane.velocity*0.08, -0.4), 0.6);
-
         if (airplane.y + airplane.height >= canvas.height - 50) {
             createExplosion(airplane.x+airplane.width/2, canvas.height-50);
             gameOver();
@@ -596,11 +887,15 @@ function updateAirplane() {
 
 function updateBuildings() {
     if (gameState !== 'playing') return;
+    const spd = getScrollSpeed();
+    // Spawn interval: faster speed → spawn sooner so gap density stays consistent
+    const spawnInterval = Math.round(120 / SPEED_MULTIPLIERS[speedLevel]);
+
     buildingTimer++;
-    if (buildingTimer > 120) { buildings.push(createBuilding()); buildingTimer = 0; }
+    if (buildingTimer > spawnInterval) { buildings.push(createBuilding()); buildingTimer = 0; }
 
     buildings.forEach((b, i) => {
-        b.x -= 2;
+        b.x -= spd;
         if (b.x + buildingWidth < 0) { buildings.splice(i,1); return; }
 
         if (!b.scored && b.x+buildingWidth < airplane.x) {
@@ -657,10 +952,10 @@ function drawGround() {
     ctx.fillStyle = '#2D7A2D';
     ctx.fillRect(0, canvas.height-50, canvas.width, 50);
     ctx.fillStyle = '#1E5C1E';
-    groundOffset -= (gameState === 'playing' ? 2 : 0);
+    const spd = gameState === 'playing' ? getScrollSpeed() : 0;
+    groundOffset -= spd;
     if (groundOffset <= -20) groundOffset = 0;
     for (let x=groundOffset; x<canvas.width; x+=20) ctx.fillRect(x, canvas.height-50, 10, 50);
-    // Ground line
     ctx.fillStyle = '#3A963A';
     ctx.fillRect(0, canvas.height-50, canvas.width, 3);
 }
@@ -668,6 +963,11 @@ function drawGround() {
 // ─── Controls ────────────────────────────────────────────────────────────────
 
 function fly() {
+    // Don't fly if interacting with settings
+    if (settingsPanel.classList.contains('open')) {
+        settingsPanel.classList.remove('open');
+        return;
+    }
     if (gameState === 'start') startGame();
     else if (gameState === 'playing') airplane.velocity = airplane.jumpStrength;
     else if (gameState === 'gameOver' && canRestart) restartGame();
@@ -681,12 +981,14 @@ function startGame() {
     buildingDamage = null;
     document.getElementById('startScreen').style.display = 'none';
     document.getElementById('score').textContent = '0';
+    hud.style.display = 'flex';
 }
 
 function gameOver() {
     if (gameState === 'gameOver') return;
     gameState = 'gameOver';
     canRestart = false;
+    hud.style.display = 'none';
     if (score > bestScore) bestScore = score;
     document.getElementById('finalScore').textContent = score;
     document.getElementById('bestScore').textContent = bestScore;
@@ -703,7 +1005,6 @@ function restartGame() {
 function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Sky gradient
     const sky = ctx.createLinearGradient(0,0,0,canvas.height);
     sky.addColorStop(0,   '#5BBAE8');
     sky.addColorStop(0.68,'#A8D8EA');
@@ -729,6 +1030,8 @@ function gameLoop() {
     debrisParticles.forEach(p => p.draw());
 
     drawGround();
+
+    if (gameState === 'playing') updateHUD();
 
     requestAnimationFrame(gameLoop);
 }
