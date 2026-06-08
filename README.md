@@ -68,11 +68,11 @@ A pulsing `↑` arrow appears the moment progressive speed kicks in and stays vi
 ## File Structure
 
 ```
-flappy-airplane.html    # Entire game — single self-contained file
+index.html    # Entire game — single self-contained file
 README.md
 ```
 
-No build step. No dependencies. Open `flappy-airplane.html` in any modern browser and play.
+No build step. No dependencies. Open `index.html` in any modern browser and play.
 
 ---
 
