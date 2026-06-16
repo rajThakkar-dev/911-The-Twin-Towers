@@ -302,6 +302,34 @@
                 </div>
             </div>
 
+            <!-- Weight slider -->
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>Plane Weight</span>
+                    <span id="weightLabel">Normal</span>
+                </div>
+                <input type="range" id="weightSlider" min="1" max="5" step="1" value="3">
+                <div class="speed-labels">
+                    <span>Light</span>
+                    <span>Normal</span>
+                    <span>Heavy</span>
+                </div>
+            </div>
+
+            <!-- Jump slider -->
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>Jump Power</span>
+                    <span id="jumpLabel">Normal</span>
+                </div>
+                <input type="range" id="jumpSlider" min="1" max="5" step="1" value="3">
+                <div class="speed-labels">
+                    <span>Weak</span>
+                    <span>Normal</span>
+                    <span>Strong</span>
+                </div>
+            </div>
+
             <hr class="divider">
 
             <!-- Progressive difficulty toggle -->
@@ -361,6 +389,11 @@ const SPEED_NAMES       = { 1: 'Slow', 2: 'Easy', 3: 'Normal', 4: 'Fast', 5: 'In
 let speedLevel = 3;               // default Normal
 let progressiveDifficulty = false; // default: constant speed
 
+const WEIGHT_VALUES = { 1: 0.15, 2: 0.35, 3: 0.55, 4: 0.75, 5: 0.95 };
+const WEIGHT_NAMES  = { 1: 'Floaty', 2: 'Light', 3: 'Normal', 4: 'Heavy', 5: 'Brick' };
+const JUMP_VALUES   = { 1: -4.5, 2: -7.5, 3: -10.5, 4: -13.5, 5: -16.5 };
+const JUMP_NAMES    = { 1: 'Weak', 2: 'Soft', 3: 'Normal', 4: 'Strong', 5: 'Super' };
+
 // Derive the actual scroll speed each frame
 function getScrollSpeed() {
     const base = 2 * SPEED_MULTIPLIERS[speedLevel];
@@ -373,6 +406,10 @@ function getScrollSpeed() {
 // Settings UI wiring
 const speedSlider   = document.getElementById('speedSlider');
 const speedLabel    = document.getElementById('speedLabel');
+const weightSlider  = document.getElementById('weightSlider');
+const weightLabel   = document.getElementById('weightLabel');
+const jumpSlider    = document.getElementById('jumpSlider');
+const jumpLabel     = document.getElementById('jumpLabel');
 const diffToggle    = document.getElementById('diffToggle');
 const toggleDesc    = document.getElementById('toggleDesc');
 const settingsBtn   = document.getElementById('settingsBtn');
@@ -385,6 +422,18 @@ const hud           = document.getElementById('hud');
 speedSlider.addEventListener('input', () => {
     speedLevel = parseInt(speedSlider.value);
     speedLabel.textContent = SPEED_NAMES[speedLevel];
+});
+
+weightSlider.addEventListener('input', () => {
+    const val = parseInt(weightSlider.value);
+    weightLabel.textContent = WEIGHT_NAMES[val];
+    airplane.gravity = WEIGHT_VALUES[val];
+});
+
+jumpSlider.addEventListener('input', () => {
+    const val = parseInt(jumpSlider.value);
+    jumpLabel.textContent = JUMP_NAMES[val];
+    airplane.jumpStrength = JUMP_VALUES[val];
 });
 
 diffToggle.addEventListener('change', () => {
@@ -949,13 +998,16 @@ function updateSmoke() {
     }
 }
 
+function updateGround() {
+    const spd = gameState === 'playing' ? getScrollSpeed() : 0;
+    groundOffset -= spd;
+    if (groundOffset <= -20) groundOffset += 20;
+}
+
 function drawGround() {
     ctx.fillStyle = '#2D7A2D';
     ctx.fillRect(0, canvas.height-50, canvas.width, 50);
     ctx.fillStyle = '#1E5C1E';
-    const spd = gameState === 'playing' ? getScrollSpeed() : 0;
-    groundOffset -= spd;
-    if (groundOffset <= -20) groundOffset = 0;
     for (let x=groundOffset; x<canvas.width; x+=20) ctx.fillRect(x, canvas.height-50, 10, 50);
     ctx.fillStyle = '#3A963A';
     ctx.fillRect(0, canvas.height-50, canvas.width, 3);
@@ -1003,7 +1055,29 @@ function restartGame() {
 
 // ─── Game loop ───────────────────────────────────────────────────────────────
 
-function gameLoop() {
+let lastTime = 0;
+let accumulator = 0;
+const TIME_STEP = 1000 / 60;
+
+function gameLoop(timestamp) {
+    if (timestamp === undefined) timestamp = performance.now();
+    if (!lastTime) lastTime = timestamp;
+    let dt = timestamp - lastTime;
+    lastTime = timestamp;
+
+    if (dt > 250) dt = 250; // Prevent spiral of death
+    accumulator += dt;
+
+    while (accumulator >= TIME_STEP) {
+        updateClouds();
+        updateAirplane();
+        updateBuildings();
+        updateExplosion();
+        updateSmoke();
+        updateGround();
+        accumulator -= TIME_STEP;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const sky = ctx.createLinearGradient(0,0,0,canvas.height);
@@ -1014,14 +1088,7 @@ function gameLoop() {
     ctx.fillStyle = sky;
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    updateClouds();
     clouds.forEach(drawCloud);
-
-    updateAirplane();
-    updateBuildings();
-    updateExplosion();
-    updateSmoke();
-
     buildings.forEach(drawBuilding);
 
     if (gameState !== 'gameOver' || explosionParticles.length === 0) drawAirplane();
@@ -1041,7 +1108,7 @@ canvas.addEventListener('click', fly);
 document.addEventListener('keydown', e => { if (e.code==='Space') { e.preventDefault(); fly(); } });
 
 initClouds();
-gameLoop();
+requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
